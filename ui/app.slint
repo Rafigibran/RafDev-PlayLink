@@ -124,9 +124,11 @@ export component AppWindow inherits Window {
                     { label: "Settings", p: 4 },
                     { label: "About", p: 5 },
                 ]: TouchArea {
+                    height: 38px;
                     clicked => { root.page = item.p; }
                     Rectangle {
-                        height: 38px;
+                        width: 100%;
+                        height: 100%;
                         background: root.page == item.p ? #E8F0FE : transparent;
                         border-radius: 10px;
                         Text {
@@ -329,10 +331,12 @@ export component AppWindow inherits Window {
             // ----- Devices page -----
             if root.page == 1: VerticalLayout {
                 spacing: 14px;
+                alignment: start;
                 Text { text: "Devices"; font-size: 24px; font-weight: 700; color: #172033; }
                 Text { text: "Connected and previously paired Android devices."; font-size: 13px; color: #758198; }
                 HorizontalLayout {
                     spacing: 8px;
+                    height: 40px;
                     Button { text: "Refresh"; primary: true; clicked => { root.refresh-devices(); } }
                     Button { text: "Disconnect"; clicked => { root.disconnect-device(); } }
                 }
@@ -372,9 +376,10 @@ export component AppWindow inherits Window {
             // ----- Streaming page -----
             if root.page == 2: VerticalLayout {
                 spacing: 14px;
+                alignment: start;
                 Text { text: "Streaming"; font-size: 24px; font-weight: 700; color: #172033; }
                 Text { text: "Clean Feed is a borderless window with only the phone screen. Capture it in OBS with Window Capture."; font-size: 13px; color: #758198; wrap: word-wrap; }
-                Button { text: "Open Clean Feed"; primary: true; clicked => { root.open-clean-feed(); } }
+                Button { text: "Open Clean Feed"; primary: true; height: 40px; clicked => { root.open-clean-feed(); } }
                 Text { text: "OBS Studio, Method A (recommended): start mirroring, open Clean Feed, add a Window Capture source in OBS and select the Clean Feed window."; font-size: 13px; color: #172033; wrap: word-wrap; }
                 Text { text: "OBS Studio, Method B (Windows 11): enable the PlayLink Virtual Camera, then add a Video Capture Device source in OBS. Status: " + root.virtual-camera-status; font-size: 13px; color: #172033; wrap: word-wrap; }
                 Text { text: "TikTok LIVE Studio: capture Clean Feed with a window or screen source in the installed LIVE Studio version."; font-size: 13px; color: #172033; wrap: word-wrap; }
@@ -383,17 +388,19 @@ export component AppWindow inherits Window {
             // ----- Recordings page -----
             if root.page == 3: VerticalLayout {
                 spacing: 14px;
+                alignment: start;
                 Text { text: "Recordings"; font-size: 24px; font-weight: 700; color: #172033; }
                 Text { text: "Screenshots: " + root.screenshot-folder; font-size: 13px; color: #758198; wrap: word-wrap; }
                 Text { text: "Recordings: " + root.recording-folder; font-size: 13px; color: #758198; wrap: word-wrap; }
                 Text { text: "Recording: " + (root.is-recording ? "Recording " + root.recording-time : "Idle"); font-size: 13px; color: #172033; }
-                Button { text: root.is-recording ? "Stop Recording" : "Start Recording"; clicked => { root.toggle-recording(); } }
+                Button { text: root.is-recording ? "Stop Recording" : "Start Recording"; height: 40px; clicked => { root.toggle-recording(); } }
                 Text { text: "Tip: start mirroring first, then record to capture the phone screen as MP4."; font-size: 12px; color: #758198; wrap: word-wrap; }
             }
 
             // ----- Settings page -----
             if root.page == 4: VerticalLayout {
                 spacing: 14px;
+                alignment: start;
                 Text { text: "Settings"; font-size: 24px; font-weight: 700; color: #172033; }
                 Text { text: "Video"; font-size: 15px; font-weight: 600; color: #172033; }
                 CheckBox { text: "Hardware decoding (when available)"; checked: root.hw-decoding-enabled; toggled => { root.set-hw-decoding(self.checked); } }
@@ -403,14 +410,16 @@ export component AppWindow inherits Window {
                 LineEdit {
                     text: root.adb-path;
                     placeholder-text: "C:\\platform-tools\\adb.exe";
+                    height: 40px;
                     edited(text) => { root.set-adb-path(text); }
                 }
-                Button { text: "Export Diagnostics"; clicked => { root.export-diagnostics(); } }
+                Button { text: "Export Diagnostics"; height: 40px; clicked => { root.export-diagnostics(); } }
             }
 
             // ----- About page -----
             if root.page == 5: VerticalLayout {
                 spacing: 14px;
+                alignment: start;
                 Text { text: "About PlayLink"; font-size: 24px; font-weight: 700; color: #172033; }
                 Text { text: "RafDev PlayLink v" + root.version; font-size: 14px; color: #172033; }
                 Text { text: "Mirror. Control. Stream."; font-size: 14px; color: #758198; }
