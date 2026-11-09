@@ -8,6 +8,34 @@ Aplikasi desktop native untuk mirroring layar Android, kontrol device, dan outpu
 - Bahasa: **Rust**, UI: **Slint**
 - Prinsip: Minimal UI. Native Performance. Seamless Streaming.
 
+## Screenshots
+
+Tampilan pertama, belum ada HP terhubung:
+
+![Tampilan pertama PlayLink](docs/screenshots/Tampilan%20pertama%20aplikasi%20PlayLink.webp)
+
+Halaman Mirror saat mirroring aktif:
+
+![Halaman Mirror saat mirroring](docs/screenshots/Halaman%20Mirror%20saat%20mirroring.webp)
+
+Halaman Devices:
+
+![Halaman Devices](docs/screenshots/Halaman%20Devices.webp)
+
+Halaman Streaming:
+
+![Halaman Streaming](docs/screenshots/Halaman%20Streaming.webp)
+
+Halaman Recordings:
+
+![Halaman Recordings](docs/screenshots/Halaman%20Recordings.webp)
+
+Halaman Settings:
+
+![Halaman Settings](docs/screenshots/Halaman%20Settings.webp)
+
+Catatan: screenshot Mirror, Devices, Streaming, Recordings, dan Settings memakai data contoh (HP Xiaomi 13T dan layar HP sintetis), karena build ini belum dites on-device.
+
 ## Status Fase 1 (MVP)
 
 Fitur yang sudah jadi di kode ini:
