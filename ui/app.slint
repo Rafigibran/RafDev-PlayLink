@@ -1,0 +1,447 @@
+// RafDev PlayLink: main window (PRD section 10).
+// Design system: primary #1769EA, background #F7F9FC, surface #FFFFFF,
+// primary text #172033, secondary text #758198, success #16A36A,
+// error #DC4141, radius 10-16px, Inter / system sans, light theme first.
+// Reference: the Phone Mirror mockup (sidebar + Mirror Your Phone + connect
+// card + phone preview). This file defines the full callback/property
+// surface; the Rust side (src/app.rs) wires it to the engines.
+
+import { Button, ComboBox, LineEdit, CheckBox } from "std-widgets.slint";
+
+struct DeviceRow {
+    serial: string,
+    name: string,
+    android: string,
+    connection: string,
+    state: string,
+}
+
+export component AppWindow inherits Window {
+    title: "RafDev PlayLink";
+    preferred-width: 1100px;
+    preferred-height: 720px;
+    min-width: 900px;
+    min-height: 600px;
+    background: #F7F9FC;
+
+    // --- state from Rust ---
+    in property <[DeviceRow]> device-list;
+    in property <string> connection-status: "Disconnected";
+    in property <string> connected-device: "";
+    in property <bool> is-mirroring: false;
+    in property <bool> is-recording: false;
+    in property <string> recording-time: "00:00";
+    in property <image> video-frame;
+    in property <string> fps: "--";
+    in property <string> latency: "--";
+    in property <string> status-message: "";
+    in property <bool> clean-feed-open: false;
+    in property <string> virtual-camera-status: "Not available, use Clean Feed";
+    in property <string> audio-status: "Off";
+    in property <string> version: "1.0.0";
+    in property <string> screenshot-folder: "";
+    in property <string> recording-folder: "";
+    in property <string> adb-path: "";
+    in property <int> quality-index: 1;
+    in property <bool> hw-decoding-enabled: true;
+    in property <bool> audio-forwarding-enabled: false;
+    in property <bool> auto-reconnect-enabled: true;
+
+    // --- actions to Rust ---
+    callback connect-device(string);
+    callback disconnect-device();
+    callback refresh-devices();
+    callback forget-device(string);
+    callback start-mirroring();
+    callback stop-mirroring();
+    callback open-clean-feed();
+    callback take-screenshot();
+    callback toggle-recording();
+    callback nav-back();
+    callback nav-home();
+    callback nav-recents();
+    callback volume-up();
+    callback volume-down();
+    callback set-quality(int);
+    callback set-audio-forwarding(bool);
+    callback set-hw-decoding(bool);
+    callback set-auto-reconnect(bool);
+    callback set-adb-path(string);
+    callback export-diagnostics();
+    callback preview-click(float, float);
+    callback preview-drag(float, float, float, float);
+
+    in-out property <int> page: 0; // 0 Mirror, 1 Devices, 2 Streaming, 3 Recordings, 4 Settings, 5 About
+
+    HorizontalLayout {
+        // ---------- Sidebar ----------
+        Rectangle {
+            width: 200px;
+            background: #FFFFFF;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 6px;
+                alignment: start;
+
+                HorizontalLayout {
+                    spacing: 10px;
+                    Rectangle {
+                        width: 36px;
+                        height: 36px;
+                        background: #1769EA;
+                        border-radius: 10px;
+                        Text {
+                            text: "▶";
+                            color: white;
+                            font-size: 16px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    VerticalLayout {
+                        Text {
+                            text: "PlayLink";
+                            font-size: 17px;
+                            font-weight: 700;
+                            color: #172033;
+                        }
+                        Text {
+                            text: "RafDev";
+                            font-size: 11px;
+                            color: #758198;
+                        }
+                    }
+                }
+
+                Rectangle { height: 12px; }
+
+                // nav items
+                for item[i] in [
+                    { label: "Mirror", p: 0 },
+                    { label: "Devices", p: 1 },
+                    { label: "Streaming", p: 2 },
+                    { label: "Recordings", p: 3 },
+                    { label: "Settings", p: 4 },
+                    { label: "About", p: 5 },
+                ]: TouchArea {
+                    clicked => { root.page = item.p; }
+                    Rectangle {
+                        height: 38px;
+                        background: root.page == item.p ? #E8F0FE : transparent;
+                        border-radius: 10px;
+                        Text {
+                            text: item.label;
+                            font-size: 14px;
+                            font-weight: root.page == item.p ? 600 : 400;
+                            color: root.page == item.p ? #1769EA : #172033;
+                            vertical-alignment: center;
+                            x: 12px;
+                        }
+                    }
+                }
+
+                Rectangle { height: 8px; }
+                Text {
+                    text: "v" + root.version;
+                    font-size: 11px;
+                    color: #758198;
+                }
+            }
+        }
+
+        // ---------- Content ----------
+        VerticalLayout {
+            padding: 24px;
+            spacing: 16px;
+
+            // ----- Mirror page -----
+            if root.page == 0: VerticalLayout {
+                spacing: 16px;
+                Text {
+                    text: "Mirror Your Phone";
+                    font-size: 28px;
+                    font-weight: 700;
+                    color: #172033;
+                }
+                Text {
+                    text: "Display and control your phone on this laptop seamlessly.";
+                    font-size: 14px;
+                    color: #758198;
+                }
+
+                HorizontalLayout {
+                    spacing: 16px;
+
+                    // Phone preview
+                    Rectangle {
+                        width: 320px;
+                        background: #FFFFFF;
+                        border-radius: 16px;
+                        drop-shadow-blur: 12px;
+                        drop-shadow-color: #17203318;
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 10px;
+                            Rectangle {
+                                height: 420px;
+                                background: #0B1220;
+                                border-radius: 12px;
+                                Image {
+                                    source: root.video-frame;
+                                    width: 100%;
+                                    height: 100%;
+                                    image-fit: contain;
+                                }
+                                if !root.is-mirroring: Text {
+                                    text: root.connected-device == "" ? "No device connected" : "Mirroring stopped";
+                                    color: #758198;
+                                    font-size: 13px;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                                // Click and drag on the preview to control the phone.
+                                // Coordinates are normalized 0..1 within the preview.
+                                TouchArea {
+                                    property <bool> pressed-here: false;
+                                    property <bool> dragging: false;
+                                    width: 100%;
+                                    height: 100%;
+                                    pointer-event(event) => {
+                                        if (event.kind == PointerEventKind.down) {
+                                            self.pressed-here = true;
+                                            self.dragging = false;
+                                        } else if (event.kind == PointerEventKind.move && self.pressed-here) {
+                                            if (self.mouse-x - self.pressed-x > 6px || self.mouse-x - self.pressed-x < -6px || self.mouse-y - self.pressed-y > 6px || self.mouse-y - self.pressed-y < -6px) {
+                                                self.dragging = true;
+                                            }
+                                        } else if (event.kind == PointerEventKind.up) {
+                                            if (self.pressed-here) {
+                                                if (self.dragging) {
+                                                    root.preview-drag(self.pressed-x / self.width, self.pressed-y / self.height, self.mouse-x / self.width, self.mouse-y / self.height);
+                                                } else {
+                                                    root.preview-click(self.mouse-x / self.width, self.mouse-y / self.height);
+                                                }
+                                                self.pressed-here = false;
+                                                self.dragging = false;
+                                            }
+                                        } else if (event.kind == PointerEventKind.cancel) {
+                                            self.pressed-here = false;
+                                            self.dragging = false;
+                                        }
+                                    }
+                                }
+                            }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: center;
+                                Text { text: "FPS " + root.fps; font-size: 12px; color: #758198; }
+                                Text { text: "•"; font-size: 12px; color: #758198; }
+                                Text { text: "Latency " + root.latency; font-size: 12px; color: #758198; }
+                                Text { text: "•"; font-size: 12px; color: #758198; }
+                                Text { text: root.connection-status; font-size: 12px; color: root.is-mirroring ? #16A36A : #758198; }
+                            }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: center;
+                                Button { text: "Back"; clicked => { root.nav-back(); } }
+                                Button { text: "Home"; clicked => { root.nav-home(); } }
+                                Button { text: "Recent"; clicked => { root.nav-recents(); } }
+                            }
+                            Text {
+                                text: "Click or drag the preview to tap and swipe on the phone.";
+                                font-size: 12px;
+                                color: #758198;
+                                horizontal-alignment: center;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+
+                    // Connect card + actions
+                    VerticalLayout {
+                        spacing: 16px;
+                        Rectangle {
+                            background: #FFFFFF;
+                            border-radius: 16px;
+                            drop-shadow-blur: 12px;
+                            drop-shadow-color: #17203318;
+                            VerticalLayout {
+                                padding: 20px;
+                                spacing: 12px;
+                                Text { text: "Connect your phone"; font-size: 17px; font-weight: 700; color: #172033; }
+                                Text { text: "Choose a connection method to start mirroring."; font-size: 13px; color: #758198; }
+                                Text {
+                                    text: root.connected-device == "" ? "No device selected. Pick a device below or refresh." : "Device: " + root.connected-device;
+                                    font-size: 13px;
+                                    color: #172033;
+                                    wrap: word-wrap;
+                                }
+                                Button {
+                                    text: root.is-mirroring ? "Stop Mirroring" : "Start Mirroring";
+                                    primary: true;
+                                    clicked => {
+                                        if (root.is-mirroring) { root.stop-mirroring(); } else { root.start-mirroring(); }
+                                    }
+                                }
+                                Button { text: "Open Clean Feed"; clicked => { root.open-clean-feed(); } }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Button { text: "Screenshot"; clicked => { root.take-screenshot(); } }
+                                    Button { text: root.is-recording ? "Stop (" + root.recording-time + ")" : "Record"; clicked => { root.toggle-recording(); } }
+                                }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Button { text: "Vol +"; clicked => { root.volume-up(); } }
+                                    Button { text: "Vol -"; clicked => { root.volume-down(); } }
+                                }
+                            }
+                        }
+                        Rectangle {
+                            background: #FFFFFF;
+                            border-radius: 16px;
+                            drop-shadow-blur: 12px;
+                            drop-shadow-color: #17203318;
+                            VerticalLayout {
+                                padding: 20px;
+                                spacing: 10px;
+                                Text { text: "Quality"; font-size: 15px; font-weight: 600; color: #172033; }
+                                ComboBox {
+                                    model: ["Low (720p30)", "Balanced (1080p30)", "High (1080p60)", "Custom"];
+                                    current-index: root.quality-index;
+                                    selected(_) => { root.set-quality(self.current-index); }
+                                }
+                                Text { text: "Clean Feed: " + (root.clean-feed-open ? "Open" : "Closed"); font-size: 12px; color: #758198; }
+                                Text { text: "Virtual Camera: " + root.virtual-camera-status; font-size: 12px; color: #758198; wrap: word-wrap; }
+                                Text { text: "Audio: " + root.audio-status; font-size: 12px; color: #758198; }
+                            }
+                        }
+                    }
+                }
+
+                if root.status-message != "": Text {
+                    text: root.status-message;
+                    font-size: 13px;
+                    color: #1769EA;
+                    wrap: word-wrap;
+                }
+            }
+
+            // ----- Devices page -----
+            if root.page == 1: VerticalLayout {
+                spacing: 14px;
+                Text { text: "Devices"; font-size: 24px; font-weight: 700; color: #172033; }
+                Text { text: "Connected and previously paired Android devices."; font-size: 13px; color: #758198; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    Button { text: "Refresh"; primary: true; clicked => { root.refresh-devices(); } }
+                    Button { text: "Disconnect"; clicked => { root.disconnect-device(); } }
+                }
+                for d in root.device-list: Rectangle {
+                    height: 64px;
+                    background: #FFFFFF;
+                    border-radius: 12px;
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        spacing: 12px;
+                        VerticalLayout {
+                            alignment: center;
+                            Text { text: d.name; font-size: 14px; font-weight: 600; color: #172033; }
+                            Text { text: d.android + " • " + d.connection + " • " + d.serial; font-size: 12px; color: #758198; }
+                        }
+                        Rectangle { width: 8px; }
+                        Text { text: d.state; font-size: 12px; color: d.state == "Connected" ? #16A36A : #758198; vertical-alignment: center; }
+                        Button {
+                            text: "Connect";
+                            clicked => { root.connect-device(d.serial); }
+                        }
+                        Button {
+                            text: "Forget";
+                            clicked => { root.forget-device(d.serial); }
+                        }
+                    }
+                }
+                if root.device-list.length == 0: Text {
+                    text: "No devices found. Connect a phone over USB with USB Debugging on, or pair it over Wi-Fi, then press Refresh.";
+                    font-size: 13px;
+                    color: #758198;
+                    wrap: word-wrap;
+                }
+            }
+
+            // ----- Streaming page -----
+            if root.page == 2: VerticalLayout {
+                spacing: 14px;
+                Text { text: "Streaming"; font-size: 24px; font-weight: 700; color: #172033; }
+                Text { text: "Clean Feed is a borderless window with only the phone screen. Capture it in OBS with Window Capture."; font-size: 13px; color: #758198; wrap: word-wrap; }
+                Button { text: "Open Clean Feed"; primary: true; clicked => { root.open-clean-feed(); } }
+                Text { text: "OBS Studio, Method A (recommended): start mirroring, open Clean Feed, add a Window Capture source in OBS and select the Clean Feed window."; font-size: 13px; color: #172033; wrap: word-wrap; }
+                Text { text: "OBS Studio, Method B (Windows 11): enable the PlayLink Virtual Camera, then add a Video Capture Device source in OBS. Status: " + root.virtual-camera-status; font-size: 13px; color: #172033; wrap: word-wrap; }
+                Text { text: "TikTok LIVE Studio: capture Clean Feed with a window or screen source in the installed LIVE Studio version."; font-size: 13px; color: #172033; wrap: word-wrap; }
+            }
+
+            // ----- Recordings page -----
+            if root.page == 3: VerticalLayout {
+                spacing: 14px;
+                Text { text: "Recordings"; font-size: 24px; font-weight: 700; color: #172033; }
+                Text { text: "Screenshots: " + root.screenshot-folder; font-size: 13px; color: #758198; wrap: word-wrap; }
+                Text { text: "Recordings: " + root.recording-folder; font-size: 13px; color: #758198; wrap: word-wrap; }
+                Text { text: "Recording: " + (root.is-recording ? "Recording " + root.recording-time : "Idle"); font-size: 13px; color: #172033; }
+                Button { text: root.is-recording ? "Stop Recording" : "Start Recording"; clicked => { root.toggle-recording(); } }
+                Text { text: "Tip: start mirroring first, then record to capture the phone screen as MP4."; font-size: 12px; color: #758198; wrap: word-wrap; }
+            }
+
+            // ----- Settings page -----
+            if root.page == 4: VerticalLayout {
+                spacing: 14px;
+                Text { text: "Settings"; font-size: 24px; font-weight: 700; color: #172033; }
+                Text { text: "Video"; font-size: 15px; font-weight: 600; color: #172033; }
+                CheckBox { text: "Hardware decoding (when available)"; checked: root.hw-decoding-enabled; toggled => { root.set-hw-decoding(self.checked); } }
+                CheckBox { text: "Audio forwarding"; checked: root.audio-forwarding-enabled; toggled => { root.set-audio-forwarding(self.checked); } }
+                CheckBox { text: "Auto reconnect"; checked: root.auto-reconnect-enabled; toggled => { root.set-auto-reconnect(self.checked); } }
+                Text { text: "ADB executable path (leave empty to auto-detect)"; font-size: 13px; color: #758198; }
+                LineEdit {
+                    text: root.adb-path;
+                    placeholder-text: "C:\\platform-tools\\adb.exe";
+                    edited(text) => { root.set-adb-path(text); }
+                }
+                Button { text: "Export Diagnostics"; clicked => { root.export-diagnostics(); } }
+            }
+
+            // ----- About page -----
+            if root.page == 5: VerticalLayout {
+                spacing: 14px;
+                Text { text: "About PlayLink"; font-size: 24px; font-weight: 700; color: #172033; }
+                Text { text: "RafDev PlayLink v" + root.version; font-size: 14px; color: #172033; }
+                Text { text: "Mirror. Control. Stream."; font-size: 14px; color: #758198; }
+                Text { text: "Android screen mirroring, device control, and live-streaming output for Windows. No account or cloud service required for local mirroring."; font-size: 13px; color: #758198; wrap: word-wrap; }
+                Text { text: "Mirroring backend: upstream scrcpy server (Apache-2.0). See THIRD-PARTY-NOTICES.md."; font-size: 12px; color: #758198; wrap: word-wrap; }
+            }
+        }
+    }
+}
+
+// Clean Feed window (PRD section 5). Borderless window showing only the
+// mirrored phone screen, for OBS / TikTok LIVE Studio Window Capture.
+// No PlayLink UI in frame. The Rust side (src/streaming) pumps the shared
+// frame into `video-frame` on a timer and sizes the window from the
+// selected OutputAspect. Lives in this file (not a separate .slint file)
+// because slint-build's include_modules only exposes the last compiled
+// file; one entry file keeps both components visible to Rust.
+export component CleanFeedWindow inherits Window {
+    title: "PlayLink Clean Feed";
+    no-frame: true;
+    always-on-top: true;
+    background: black;
+    preferred-width: 540px;
+    preferred-height: 960px;
+
+    in property <image> video-frame;
+
+    Image {
+        source: root.video-frame;
+        width: 100%;
+        height: 100%;
+        image-fit: contain;
+    }
+}
