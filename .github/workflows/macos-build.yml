@@ -10,6 +10,12 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    env:
+      # Lowest macOS the app supports (Rafi's Mac runs 12.7.6).
+      # Without this, the linker defaults to the runner's macOS and the
+      # binary itself refuses to load on older systems, even with a
+      # matching LSMinimumSystemVersion in Info.plist.
+      MACOSX_DEPLOYMENT_TARGET: '12.0'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
