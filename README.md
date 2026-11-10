@@ -4,7 +4,7 @@ Mirror. Control. Stream.
 
 Aplikasi desktop native untuk mirroring layar Android, kontrol device, dan output live-streaming. Dibangun sesuai PRD v1.0.
 
-- Platform: **Windows 10/11 64-bit** dan **macOS 13+ (Apple Silicon)**. Build macOS belum dites on-device.
+- Platform: **Windows 10/11 64-bit** dan **macOS 12+ (Apple Silicon)**. Build macOS belum dites on-device.
 - Bahasa: **Rust**, UI: **Slint**
 - Prinsip: Minimal UI. Native Performance. Seamless Streaming.
 
