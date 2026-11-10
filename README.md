@@ -4,7 +4,7 @@ Mirror. Control. Stream.
 
 Aplikasi desktop native untuk mirroring layar Android, kontrol device, dan output live-streaming. Dibangun sesuai PRD v1.0.
 
-- Platform utama: **Windows 10/11 64-bit**
+- Platform: **Windows 10/11 64-bit** dan **macOS 13+ (Apple Silicon)**. Build macOS belum dites on-device.
 - Bahasa: **Rust**, UI: **Slint**
 - Prinsip: Minimal UI. Native Performance. Seamless Streaming.
 
@@ -53,11 +53,13 @@ Fitur yang sudah jadi di kode ini:
 | Audio forwarding | **Belum**: plumbing dan status sudah ada, decoder nyata dipasang di Fase 2 |
 | Virtual camera Windows | **Belum**: status selalu Not Supported di Fase 1, pakai Clean Feed untuk OBS |
 
-Belum ada verifikasi on-device dari build ini. Build pertama harus dites di PC Windows dengan HP Android sungguhan.
+Belum ada verifikasi on-device dari build ini. Build pertama harus dites di PC Windows atau Mac dengan HP Android sungguhan.
 
 ## Cara build (GitHub Actions, cara utama)
 
 Repo ini memakai GitHub Actions, jadi tidak butuh PC untuk build.
+
+### Windows
 
 1. Push kode ke branch `main` di repo `Rafigibran/RafDev-PlayLink`.
 2. Buka tab **Actions** di GitHub, pilih run **Windows Build** yang terbaru.
@@ -67,9 +69,23 @@ Repo ini memakai GitHub Actions, jadi tidak butuh PC untuk build.
 
 Isi artifact: `playlink.exe`, `README.md`, `THIRD-PARTY-NOTICES.md`, `LICENSE`.
 
-## Build lokal (Windows)
+### macOS (Apple Silicon)
+
+1. Push kode ke branch `main` di repo `Rafigibran/RafDev-PlayLink`.
+2. Buka tab **Actions** di GitHub, pilih run **macOS Build** yang terbaru.
+3. Tunggu sampai semua step hijau: Check, Test, Build.
+4. Unduh artifact **`playlink-macos-arm64`** dari halaman run tersebut.
+5. Ekstrak zip, seret `PlayLink.app` ke folder Applications, lalu jalankan.
+
+Isi artifact: `PlayLink.app`, `README.md`, `THIRD-PARTY-NOTICES.md`, `LICENSE`.
+
+Catatan Gatekeeper: build ini tidak ditandatangani dengan sertifikat Apple Developer, jadi macOS akan memblokir saat pertama dibuka ("cannot be opened because the developer cannot be verified"). Klik kanan `PlayLink.app`, pilih **Open**, lalu klik **Open** di dialog. Setelah itu aplikasi jalan normal. Build Mac Intel tidak tersedia dari CI; pengguna Intel bisa build dari source dengan target `x86_64-apple-darwin`.
+
+## Build lokal
 
 Butuh Rust stable 1.81 atau lebih baru.
+
+Windows (PowerShell):
 
 ```powershell
 cargo test --release
@@ -78,6 +94,15 @@ cargo build --release
 
 Hasilnya di `target\release\playlink.exe`.
 
+macOS (Terminal):
+
+```bash
+cargo test --release
+cargo build --release
+```
+
+Hasilnya di `target/release/playlink`. Untuk membungkus jadi `PlayLink.app`, salin `macos/Info.plist` ke `PlayLink.app/Contents/Info.plist` dan binary ke `PlayLink.app/Contents/MacOS/playlink`.
+
 ## First run: unduhan otomatis
 
 Saat pertama kali mirroring, PlayLink mengunduh dua komponen (tidak dibundel di repo):
@@ -85,7 +110,7 @@ Saat pertama kali mirroring, PlayLink mengunduh dua komponen (tidak dibundel di 
 1. **scrcpy-server** v3.3.3 dari GitHub release Genymobile/scrcpy (Apache-2.0). Bila unduhan versi pin gagal, fallback ke release terbaru lewat GitHub API.
 2. **Android platform-tools** (ADB) bila `adb` tidak ditemukan di PATH dan tidak diatur di Settings.
 
-Keduanya disimpan di folder data lokal aplikasi (`%LOCALAPPDATA%\RafDev\PlayLink` di Windows).
+Keduanya disimpan di folder data lokal aplikasi: `%LOCALAPPDATA%\RafDev\PlayLink` di Windows, `~/Library/Application Support/RafDev/PlayLink` di macOS, `~/.local/share/RafDev/PlayLink` di Linux. Bila `adb` tidak ditemukan, PlayLink mengunduh platform-tools dari Google sekali saat pertama refresh device (sekitar 15 MB); bila unduhan gagal, pasang ADB manual atau atur path-nya di Settings.
 
 ## Cara pakai
 

@@ -4,13 +4,25 @@
 //! The binary is resolved in this order:
 //! 1. `Settings.adb_path` when set.
 //! 2. `adb` on PATH.
-//! 3. `%LOCALAPPDATA%/RafDev/PlayLink/platform-tools/adb.exe` (downloaded
-//!    on first run, Apache-2.0, see THIRD-PARTY-NOTICES.md).
+//! 3. The platform-tools copy in the components directory, downloaded
+//!    from Google on first run when it is missing:
+//!    - Windows: `%LOCALAPPDATA%/RafDev/PlayLink/platform-tools/adb.exe`
+//!    - macOS: `~/Library/Application Support/RafDev/PlayLink/platform-tools/adb`
+//!    - Linux: `~/.local/share/RafDev/PlayLink/platform-tools/adb`
+//!    (Apache-2.0, see THIRD-PARTY-NOTICES.md).
 
 use crate::core::{ConnectionState, ConnectionType, PlayLinkError, Result, Settings};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
+
+/// A platform-tools download is attempted at most once per process run:
+///
+/// a failed first run (no network, Google unreachable) must not make every
+/// later device refresh re-download a ~15 MB archive.
+static PLATFORM_TOOLS_DOWNLOAD_ATTEMPTED: AtomicBool = AtomicBool::new(false);
 
 /// One Android device, as discovered through ADB.
 pub use crate::core::DeviceInfo;
@@ -36,11 +48,18 @@ impl Adb {
             return Ok(Self { exe: path });
         }
         // 3. Downloaded platform-tools in the components directory.
+        //    On first run the copy is missing, so try downloading it once
+        //    (Google's platform-tools archive for this OS) and re-check.
         let bundled = Self::components_dir()
             .join("platform-tools")
             .join(adb_exe_name());
         if bundled.is_file() {
             return Ok(Self { exe: bundled });
+        }
+        if !PLATFORM_TOOLS_DOWNLOAD_ATTEMPTED.swap(true, Ordering::SeqCst) {
+            if download_platform_tools().is_ok() && bundled.is_file() {
+                return Ok(Self { exe: bundled });
+            }
         }
         Err(PlayLinkError::AdbNotFound)
     }
@@ -352,6 +371,103 @@ fn adb_exe_name() -> &'static str {
     }
 }
 
+/// Google's platform-tools archive for the current OS.
+fn platform_tools_url() -> &'static str {
+    if cfg!(windows) {
+        "https://dl.google.com/android/repository/platform-tools-latest-windows.zip"
+    } else if cfg!(target_os = "macos") {
+        "https://dl.google.com/android/repository/platform-tools-latest-darwin.zip"
+    } else {
+        "https://dl.google.com/android/repository/platform-tools-latest-linux.zip"
+    }
+}
+
+/// Download the platform-tools archive for this OS and extract it into the
+/// components directory, so `adb` lands at
+/// `<components>/platform-tools/adb[.exe]`. Returns an error string on any
+/// failure; the caller treats that as "adb still not found".
+fn download_platform_tools() -> std::result::Result<(), String> {
+    let url = platform_tools_url();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(180))
+        .user_agent("RafDev-PlayLink/1.0")
+        .build()
+        .map_err(|e| format!("could not build the HTTP client: {}", e))?;
+    let response = client
+        .get(url)
+        .send()
+        .map_err(|e| format!("platform-tools download request failed: {}", e))?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!(
+            "platform-tools download failed: HTTP {} for {}",
+            status, url
+        ));
+    }
+    let bytes = response
+        .bytes()
+        .map_err(|e| format!("could not read the platform-tools download: {}", e))?;
+    if bytes.len() < 4 || &bytes[..4] != b"PK\x03\x04" {
+        return Err(
+            "downloaded file is not a platform-tools zip (bad magic bytes)".to_string(),
+        );
+    }
+    let dir = Adb::components_dir();
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("could not create {}: {}", dir.display(), e))?;
+    let zip_path = dir.join("platform-tools.zip");
+    std::fs::write(&zip_path, &bytes)
+        .map_err(|e| format!("could not save {}: {}", zip_path.display(), e))?;
+    let result = extract_platform_tools_zip(&zip_path, &dir);
+    let _ = std::fs::remove_file(&zip_path);
+    result
+}
+
+/// Extract a platform-tools zip into `dest` (the components directory).
+/// The archive has one top-level `platform-tools/` folder; entries are
+/// validated with `enclosed_name` so a hostile archive cannot write
+/// outside `dest`. On Unix the `adb` binary is made executable.
+fn extract_platform_tools_zip(zip_path: &Path, dest: &Path) -> std::result::Result<(), String> {
+    let file = std::fs::File::open(zip_path)
+        .map_err(|e| format!("could not open {}: {}", zip_path.display(), e))?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| format!("could not read the platform-tools zip: {}", e))?;
+    for i in 0..archive.len() {
+        let mut entry = archive
+            .by_index(i)
+            .map_err(|e| format!("could not read zip entry {}: {}", i, e))?;
+        let Some(out_path) = entry.enclosed_name().map(|p| dest.join(p)) else {
+            continue;
+        };
+        if entry.is_dir() {
+            std::fs::create_dir_all(&out_path)
+                .map_err(|e| format!("could not create {}: {}", out_path.display(), e))?;
+        } else {
+            if let Some(parent) = out_path.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("could not create {}: {}", parent.display(), e))?;
+            }
+            let mut out = std::fs::File::create(&out_path)
+                .map_err(|e| format!("could not write {}: {}", out_path.display(), e))?;
+            std::io::copy(&mut entry, &mut out)
+                .map_err(|e| format!("could not extract {}: {}", out_path.display(), e))?;
+        }
+    }
+    let adb = dest.join("platform-tools").join(adb_exe_name());
+    if !adb.is_file() {
+        return Err(format!(
+            "platform-tools zip did not contain {}",
+            adb.display()
+        ));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&adb, std::fs::Permissions::from_mode(0o755));
+    }
+    Ok(())
+}
+
 /// Search PATH for an adb binary.
 fn find_on_path() -> Option<PathBuf> {
     let path_var = std::env::var_os("PATH")?;
@@ -458,5 +574,88 @@ mod tests {
         );
         assert_eq!(connection_type_for("RF8M32KABCD"), ConnectionType::Usb);
         assert_eq!(connection_type_for("emulator-5554"), ConnectionType::Usb);
+    }
+
+    #[test]
+    fn platform_tools_url_matches_os() {
+        let url = platform_tools_url();
+        assert!(url.starts_with("https://dl.google.com/android/repository/platform-tools-latest-"));
+        assert!(url.ends_with(".zip"));
+        if cfg!(windows) {
+            assert!(url.contains("-windows.zip"));
+        } else if cfg!(target_os = "macos") {
+            assert!(url.contains("-darwin.zip"));
+        } else {
+            assert!(url.contains("-linux.zip"));
+        }
+    }
+
+    #[test]
+    fn adb_exe_name_matches_os() {
+        if cfg!(windows) {
+            assert_eq!(adb_exe_name(), "adb.exe");
+        } else {
+            assert_eq!(adb_exe_name(), "adb");
+        }
+    }
+
+    /// Build a minimal platform-tools-shaped zip in memory.
+    fn fake_platform_tools_zip(with_adb: bool) -> Vec<u8> {
+        let mut buf = std::io::Cursor::new(Vec::new());
+        {
+            let mut zip = zip::ZipWriter::new(&mut buf);
+            let options =
+                zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+            use std::io::Write;
+            if with_adb {
+                zip.start_file("platform-tools/adb", options).unwrap();
+                zip.write_all(b"fake-adb").unwrap();
+            }
+            zip.start_file("platform-tools/NOTICE.txt", options).unwrap();
+            zip.write_all(b"notice").unwrap();
+            zip.finish().unwrap();
+        }
+        buf.into_inner()
+    }
+
+    #[test]
+    fn extracts_platform_tools_zip_and_marks_adb_executable() {
+        let dir = std::env::temp_dir().join(format!(
+            "playlink-test-extract-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let zip_path = dir.join("platform-tools.zip");
+        std::fs::write(&zip_path, fake_platform_tools_zip(true)).unwrap();
+        let dest = dir.join("dest");
+        std::fs::create_dir_all(&dest).unwrap();
+        assert!(extract_platform_tools_zip(&zip_path, &dest).is_ok());
+        let adb = dest.join("platform-tools").join(adb_exe_name());
+        assert!(adb.is_file());
+        assert_eq!(std::fs::read(&adb).unwrap(), b"fake-adb");
+        assert!(dest.join("platform-tools").join("NOTICE.txt").is_file());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&adb).unwrap().permissions().mode() & 0o111, 0o111);
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn zip_without_adb_is_an_error() {
+        let dir = std::env::temp_dir().join(format!(
+            "playlink-test-noadb-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let zip_path = dir.join("platform-tools.zip");
+        std::fs::write(&zip_path, fake_platform_tools_zip(false)).unwrap();
+        let dest = dir.join("dest");
+        std::fs::create_dir_all(&dest).unwrap();
+        assert!(extract_platform_tools_zip(&zip_path, &dest).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

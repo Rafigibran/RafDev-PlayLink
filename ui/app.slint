@@ -409,7 +409,7 @@ export component AppWindow inherits Window {
                 Text { text: "ADB executable path (leave empty to auto-detect)"; font-size: 13px; color: #758198; }
                 LineEdit {
                     text: root.adb-path;
-                    placeholder-text: "C:\\platform-tools\\adb.exe";
+                    placeholder-text: "Path to adb (optional, auto-detected)";
                     height: 40px;
                     edited(text) => { root.set-adb-path(text); }
                 }
