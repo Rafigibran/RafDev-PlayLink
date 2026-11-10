@@ -1,0 +1,45 @@
+name: macOS Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check
+        run: cargo check --release
+
+      - name: Test
+        run: cargo test --release
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Package
+        run: |
+          mkdir -p dist/PlayLink.app/Contents/MacOS
+          cp target/release/playlink dist/PlayLink.app/Contents/MacOS/playlink
+          cp macos/Info.plist dist/PlayLink.app/Contents/Info.plist
+          cp README.md THIRD-PARTY-NOTICES.md LICENSE dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: playlink-macos-arm64
+          path: dist/
+          if-no-files-found: error
+          
