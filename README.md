@@ -4,7 +4,7 @@ Mirror. Control. Stream.
 
 Aplikasi desktop native untuk mirroring layar Android, kontrol device, dan output live-streaming. Dibangun sesuai PRD v1.0.
 
-- Platform: **Windows 10/11 64-bit** dan **macOS 12+ (Apple Silicon)**. Build macOS belum dites on-device.
+- Platform: **Windows 10/11 64-bit**, **macOS 12+ (Apple Silicon)**, dan **Linux x86_64 (Ubuntu 22.04+)**. Build macOS dan Linux belum dites on-device.
 - Bahasa: **Rust**, UI: **Slint**
 - Prinsip: Minimal UI. Native Performance. Seamless Streaming.
 
@@ -81,6 +81,18 @@ Isi artifact: `PlayLink.app`, `README.md`, `THIRD-PARTY-NOTICES.md`, `LICENSE`.
 
 Catatan Gatekeeper: build ini tidak ditandatangani dengan sertifikat Apple Developer, jadi macOS akan memblokir saat pertama dibuka ("cannot be opened because the developer cannot be verified"). Klik kanan `PlayLink.app`, pilih **Open**, lalu klik **Open** di dialog. Setelah itu aplikasi jalan normal. Build Mac Intel tidak tersedia dari CI; pengguna Intel bisa build dari source dengan target `x86_64-apple-darwin`.
 
+### Linux (x86_64)
+
+1. Push kode ke branch `main` di repo `Rafigibran/RafDev-PlayLink`.
+2. Buka tab **Actions** di GitHub, pilih run **Linux Build** yang terbaru.
+3. Tunggu sampai semua step hijau: Check, Test, Build.
+4. Unduh artifact **`playlink-linux-x86_64`** dari halaman run tersebut.
+5. Ekstrak zip, jalankan `./playlink` dari terminal.
+
+Isi artifact: `playlink`, `README.md`, `THIRD-PARTY-NOTICES.md`, `LICENSE`.
+
+Catatan: binary Linux butuh `libfontconfig` dan `libfreetype` di sistem (sudah terpasang di hampir semua Ubuntu desktop). Bila aplikasi tidak mau jalan, pasang dulu: `sudo apt install libfontconfig1 libfreetype6`.
+
 ## Build lokal
 
 Butuh Rust stable 1.81 atau lebih baru.
@@ -102,6 +114,16 @@ cargo build --release
 ```
 
 Hasilnya di `target/release/playlink`. Untuk membungkus jadi `PlayLink.app`, salin `macos/Info.plist` ke `PlayLink.app/Contents/Info.plist` dan binary ke `PlayLink.app/Contents/MacOS/playlink`.
+
+Linux (Terminal):
+
+```bash
+sudo apt install libfontconfig-dev libfreetype-dev libxkbcommon-dev libwayland-dev libx11-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libgl1-mesa-dev
+cargo test --release
+cargo build --release
+```
+
+Hasilnya di `target/release/playlink`, jalankan dengan `./target/release/playlink`.
 
 ## First run: unduhan otomatis
 
