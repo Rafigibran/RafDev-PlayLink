@@ -4,7 +4,7 @@ Mirror. Control. Stream.
 
 Aplikasi desktop native untuk mirroring layar Android, kontrol device, dan output live-streaming. Dibangun sesuai PRD v1.0.
 
-- Platform: **Windows 10/11 64-bit**, **macOS 12+ (Apple Silicon)**, dan **Linux x86_64 (Ubuntu 22.04+)**. Build macOS dan Linux belum dites on-device.
+- Platform: **Windows 10/11 64-bit**, **macOS 12+ (Apple Silicon)**, dan **Linux x86_64 (Ubuntu 22.04+) atau Linux ARM64**. Build macOS dan Linux belum dites on-device.
 - Bahasa: **Rust**, UI: **Slint**
 - Prinsip: Minimal UI. Native Performance. Seamless Streaming.
 
@@ -86,7 +86,9 @@ Catatan Gatekeeper: build ini tidak ditandatangani dengan sertifikat Apple Devel
 1. Push kode ke branch `main` di repo `Rafigibran/RafDev-PlayLink`.
 2. Buka tab **Actions** di GitHub, pilih run **Linux Build** yang terbaru.
 3. Tunggu sampai semua step hijau: Check, Test, Build.
-4. Unduh artifact **`playlink-linux-x86_64`** dari halaman run tersebut.
+4. Unduh artifact yang sesuai dengan mesin Linux Rafi:
+   - Mesin Intel/AMD 64-bit: **`playlink-linux-x86_64`**
+   - Mesin ARM 64-bit (misalnya GXDE OS di ARM, Raspberry Pi): **`playlink-linux-aarch64`**
 5. Ekstrak zip, jalankan `./playlink` dari terminal.
 
 Isi artifact: `playlink`, `README.md`, `THIRD-PARTY-NOTICES.md`, `LICENSE`.
